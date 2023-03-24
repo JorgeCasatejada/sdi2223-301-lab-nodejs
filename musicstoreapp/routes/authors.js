@@ -47,6 +47,34 @@ module.exports = function(app) {
 
         res.render("authors/add.twig", response);
     });
+
+    app.get('/authors/filter/:role', function (req, res) {
+        //Habría que validar que llega algo
+        let role = req.params.role.trim().toLowerCase();
+        let authors = [{
+            "name": "Diego García",
+            "group": "Los Maleantes",
+            "role": "cantante"
+        }, {
+            "name": "Enrique Hilanderas",
+            "group": "Los Maleantes",
+            "role": "pianista"
+        }, {
+            "name": "Alex Rodríguez",
+            "group": "Los Maleantes",
+            "role": "batería"
+        }, {
+            "name": "Jorge Casatejada",
+            "group": "Los Maleantes",
+            "role": "bajista"
+        }].filter(author => author.role.trim().toLowerCase() === role);
+
+        let response = {
+            authors: authors
+        };
+
+        res.render("authors/authors.twig", response);
+    });
     app.post('/authors/add', function (req, res){
         let response = "";
         if (req.body.name !== null && typeof (req.body.name) != "undefined" && req.body.name.trim().length != 0)
