@@ -11,7 +11,7 @@ module.exports = function(app) {
         }, {
             "name": "Alex Rodríguez",
             "group": "Los Maleantes",
-            "role": "bateria"
+            "role": "batería"
         }, {
             "name": "Jorge Casatejada",
             "group": "Los Maleantes",
@@ -24,7 +24,28 @@ module.exports = function(app) {
         res.render("authors/authors.twig", response);
     });
     app.get('/authors/add', function (req, res) {
-        res.render("authors/add.twig");
+        let roles = [{
+            "value": "cantante",
+            "role": "Cantante"
+        }, {
+            "value": "batería",
+            "role": "Batería"
+        }, {
+            "value": "guitarrista",
+            "role": "Guitarrista"
+        }, {
+            "value": "bajista",
+            "role": "Bajista"
+        }, {
+            "value": "pianista",
+            "role": "Pianista"
+        }];
+
+        let response = {
+            roles: roles
+        };
+
+        res.render("authors/add.twig", response);
     });
     app.post('/authors/add', function (req, res){
         let response = "";
