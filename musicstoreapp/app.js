@@ -44,6 +44,9 @@ app.use("/audios/",userAudiosRouter);
 app.use("/shop/",userSessionRouter);
 app.use("/comments/",userSessionRouter);
 
+const userAuthorRouter = require('./routes/userAuthorRouter');
+app.use("/songs/edit",userAuthorRouter);
+app.use("/songs/delete",userAuthorRouter);
 
 let commentsRepository = require("./repositories/commentsRepository.js");
 commentsRepository.init(app, MongoClient);
