@@ -70,15 +70,18 @@ module.exports = function(app, songsRepository, commentsRepository) {
         res.render("songs/add.twig");
     });
     app.get('/songs/:id', function(req, res) {
+        //let songId = ObjectId(req.params.id);
         let filter = {_id: ObjectId(req.params.id)};
         let filterCom = {song_id: ObjectId(req.params.id)};
         let options = {};
         songsRepository.findSong(filter, options).then(song => {
-            commentsRepository.getComments(filterCom, options).then(comments => {
-                res.render("songs/song.twig", {song: song, comments: comments});
-            }).catch(error => {
-                res.send("Se ha producido un error obtener los comentarios de la canción " + error)
-            });
+            userCanBuySong(req.session.user, ObjectId(req.params.id), function(canBuy) {
+                commentsRepository.getComments(filterCom, options).then(comments => {
+                    res.render("songs/song.twig", {song: song, comments: comments, canBuy: canBuy});
+                }).catch(error => {
+                    res.send("Se ha producido un error obtener los comentarios de la canción " + error)
+                });
+            })
         }).catch(error => {
             res.send("Se ha producido un error al buscar la canción " + error)
         });
@@ -170,11 +173,17 @@ module.exports = function(app, songsRepository, commentsRepository) {
             user: req.session.user,
             songId: songId
         }
-        songsRepository.buySong(shop, function (shopId) {
-            if (shopId == null) {
-                res.send("Error al realizar la compra");
+        userCanBuySong(req.session.user, ObjectId(req.params.id), function(canBuy) {
+            if (canBuy) {
+                songsRepository.buySong(shop, function (shopId) {
+                    if (shopId == null) {
+                        res.send("Error al realizar la compra");
+                    } else {
+                        res.redirect("/purchases");
+                    }
+                })
             } else {
-                res.redirect("/purchases");
+                res.send("No puede realizar la compra");
             }
         })
     });
@@ -230,5 +239,26 @@ module.exports = function(app, songsRepository, commentsRepository) {
             callback(true); // FIN
         }
     }
+    function userCanBuySong(user, songId, callback) {
+        let filterSong = {_id: songId};
+        let filterPurchase = {user: user, songId: songId};
 
+        songsRepository.findSong(filterSong, {}).then(song => {
+            songsRepository.getPurchases(filterPurchase, {}).then(purchased => {
+                if (song.author == (user)) {
+                    callback(false);
+                } else {
+                    if (purchased.length>0){
+                        callback(false);
+                    } else {
+                        callback(true);
+                    }
+                }
+            }).catch(() => {
+                callback(false);
+            });
+        }).catch(() => {
+            callback(false);
+        });
+    }
 };
