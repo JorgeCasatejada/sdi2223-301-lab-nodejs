@@ -88,7 +88,23 @@ module.exports = function(app, songsRepository, commentsRepository) {
         songsRepository.findSong(filter, options).then(song => {
             userCanBuySong2(req.session.user, ObjectId(req.params.id)).then(canBuy => {
                 commentsRepository.getComments(filterCom, options).then(comments => {
-                    res.render("songs/song.twig", {song: song, comments: comments, canBuy: canBuy});
+                    let settings = {
+                        url: "https://www.freeforexapi.com/api/live?pairs=EURUSD",
+                        method: "get",
+                        headers: {
+                            "token": "ejemplo",
+                        }
+                    }
+                    let rest = app.get("rest");
+                    rest(settings, function (error, response, body) {
+                        console.log("cod: " + response.statusCode + " Cuerpo :" + body);
+                        let responseObject = JSON.parse(body);
+                        let rateUSD = responseObject.rates.EURUSD.rate;
+                        // nuevo campo "usd" redondeado a dos decimales
+                        let songValue= rateUSD * song.price;
+                        song.usd = Math.round(songValue * 100) / 100;
+                        res.render("songs/song.twig", {song: song, comments: comments, canBuy: canBuy});
+                    })
                 }).catch(error => {
                     res.send("Se ha producido un error obtener los comentarios de la canción " + error)
                 });
@@ -276,7 +292,7 @@ module.exports = function(app, songsRepository, commentsRepository) {
                 callback(false);
             } else {
                 songsRepository.getPurchases(filterPurchase, {}).then(purchased => {
-                    if (purchased.length > 0 || purchased === null){
+                    if (purchased === null || purchased.length > 0){
                         callback(false);
                     } else {
                         callback(true);
@@ -299,7 +315,7 @@ module.exports = function(app, songsRepository, commentsRepository) {
             return false;
         } else {
             const purchase = await songsRepository.getPurchases(filterPurchase, {});
-            if (purchase.length>0 || purchase === null){
+            if (purchase === null || purchase.length>0){
                 return false;
             } else {
                 return true;
