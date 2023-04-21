@@ -59,6 +59,7 @@
       dataType: 'json',
       headers: {"token": token},
       success: function (response) {
+        $("#div-errors").remove();
         console.log("Canción eliminada: " + _id);
         $("#" + _id).remove(); // eliminar el <tr> de la canción
       },
