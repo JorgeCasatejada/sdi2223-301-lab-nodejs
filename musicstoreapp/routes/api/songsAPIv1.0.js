@@ -74,46 +74,111 @@ module.exports = function (app, songsRepository, usersRepository) {
             res.json({error: "Se ha producido un error :" + e})
         }
     });
+
+    async function isUserAuthorOf(user, songId) {
+        let filter = {_id: songId, author: user};
+        await songsRepository.findSong(filter, {}).then(song => {
+            if (song === null || song === "undefined") {
+                return false;
+            } else {
+                return true;
+            }
+        }).catch(() => {
+            return false;
+        });
+    }
+
     app.delete('/api/v1.0/songs/:id', function (req, res) {
         try {
             let songId = ObjectId(req.params.id)
             let filter = {_id: songId}
-            songsRepository.deleteSong(filter, {}).then(result => {
-                if (result === null || result.deletedCount === 0) {
-                    res.status(404);
-                    res.json({error: "ID inválido o no existe, no se ha borrado el registro."});
+            isUserAuthorOf(res.user, songId).then(isAuthor => {
+                if (isAuthor) {
+                    songsRepository.deleteSong(filter, {}).then(result => {
+                        if (result === null || result.deletedCount === 0) {
+                            res.status(404);
+                            res.json({error: "ID inválido o no existe, no se ha borrado el registro."});
+                        } else {
+                            res.status(200);
+                            res.send(JSON.stringify(result));
+                        }
+                    }).catch(error => {
+                        res.status(500);
+                        res.json({error: "Se ha producido un error al eliminar la canción."})
+                    });
                 } else {
-                    res.status(200);
-                    res.send(JSON.stringify(result));
+                    res.status(401);
+                    res.json({error: "No puede borrar la canción ya que no es suya"});
                 }
-            }).catch(error => {
-                res.status(500);
-                res.json({error: "Se ha producido un error al eliminar la canción."})
             });
         } catch (e) {
             res.status(500);
             res.json({error: "Se ha producido un error, revise que el ID sea válido."})
         }
     });
+
+    function validatorInsertSong(song, callbackFunction) {
+        let errors = new Array();
+        if (song.title === null || typeof song.title === 'undefined' || song.title.trim().length == 0)
+            errors.push({
+                "value": song.title,
+                "msg": "El título de la canción no puede estar vacío",
+                "param": "title",
+                "location": "body"
+            })
+
+        if (song.kind === null || typeof song.kind === 'undefined' || song.kind.trim().length == 0)
+            errors.push({
+                "value": song.kind,
+                "msg": "La categoría de la canción no puede estar vacío",
+                "param": "kind",
+                "location": "body"
+            })
+
+        if (song.price === null || typeof song.price === 'undefined' || song.price <= 0)
+            errors.push({
+                "value": song.price,
+                "msg": "El precio de la canción no puede estar vacío o ser negativo",
+                "param": "price",
+                "location": "body"
+            })
+
+        if (errors !== null && errors.length>0){
+            callbackFunction(errors);
+        } else {
+            callbackFunction(null);
+        }
+    }
+
     app.post('/api/v1.0/songs', function (req, res) {
         try {
             let song = {
                 title: req.body.title,
                 kind: req.body.kind,
                 price: req.body.price,
-                author: req.session.user
+                author: res.user
             }
             // Validar aquí: título, género, precio y autor.
-            songsRepository.insertSong(song, function (songId) {
-                if (songId === null) {
-                    res.status(409);
-                    res.json({error: "No se ha podido crear la canción. El recurso ya existe."});
+            // funcion validacion que se le pasa el objeto y devuelve array de errores
+            // igual en borrar y modificar
+            // errors: {value msg}
+            validatorInsertSong(song, function (errors){
+                if(errors !== null && errors.length>0){
+                    res.status(422);
+                    res.json({errors: errors})
                 } else {
-                    res.status(201);
-                    res.json({
-                        message: "Canción añadida correctamente.",
-                        _id: songId
-                    })
+                    songsRepository.insertSong(song, function (songId) {
+                        if (songId === null) {
+                            res.status(409);
+                            res.json({error: "No se ha podido crear la canción. El recurso ya existe."});
+                        } else {
+                            res.status(201);
+                            res.json({
+                                message: "Canción añadida correctamente.",
+                                _id: songId
+                            })
+                        }
+                    });
                 }
             });
         } catch (e) {
@@ -128,7 +193,7 @@ module.exports = function (app, songsRepository, usersRepository) {
             //Si la _id NO no existe, no crea un nuevo documento.
             const options = {upsert: false};
             let song = {
-                author: req.session.user
+                author: res.user
             }
             if (typeof req.body.title !== "undefined" && req.body.title !== null)
                 song.title = req.body.title;
